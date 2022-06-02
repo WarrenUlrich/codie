@@ -5,8 +5,8 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("codie")
 
-add_library(codie
-	src/codie.ixx
+add_library(${PROJECT_NAME}
+	"src/codie.ixx"
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
