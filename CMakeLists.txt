@@ -5,9 +5,10 @@ cmake_minimum_required (VERSION 3.8)
 
 project ("codie")
 
+file(GLOB_RECURSE CODIE_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.ixx)
+
 add_library(${PROJECT_NAME}
-	"src/codie.ixx"
+	${CODIE_SOURCES}
 )
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY CXX_STANDARD 20)
-
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_20)
