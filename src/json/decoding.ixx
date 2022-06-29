@@ -242,7 +242,7 @@ export namespace codie::json
 	}
 
 	template <typename T = value, std::input_iterator Iter>
-	T decode(const Iter &begin, Iter end)
+	T decode(Iter begin, Iter end)
 	{
 		return decode<T>(begin, end);
 	}
