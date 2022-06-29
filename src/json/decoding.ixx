@@ -3,6 +3,8 @@ export module codie.json.decoding;
 import <iterator>;
 import <vector>;
 import <stdexcept>;
+import <ranges>;
+import <iostream>;
 
 import codie.json.tokens;
 import codie.json.object;
@@ -130,6 +132,7 @@ export namespace codie::json
 												}
 												else
 												{
+													std::cout << *begin << std::endl;
 													throw std::runtime_error(
 														"unexpected token, expected:\n"
 														"	'codie::json::token_comma'\n"
@@ -236,5 +239,18 @@ export namespace codie::json
 			return true; });
 
 		return result;
+	}
+
+	template <typename T = value, std::input_iterator Iter>
+	T decode(const Iter &begin, Iter end)
+	{
+		return decode<T>(begin, end);
+	}
+
+	template <typename T = value, std::ranges::range Range>
+	T decode(const Range &range)
+	{
+		auto begin = std::ranges::begin(range);
+		return decode<T>(begin, std::ranges::end(range));
 	}
 }

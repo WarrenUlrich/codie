@@ -1,4 +1,3 @@
-
 export module codie.json.object;
 
 import <optional>;
@@ -29,35 +28,39 @@ export namespace codie::json
 
 		object() = default;
 
-		object(const map_t& map) : _map(map) {}
+		object(const map_t &map) : _map(map) {}
 
-		object(map_t&& map) : _map(std::move(map)) {}
+		object(map_t &&map) : _map(std::move(map)) {}
 
 		void clear() noexcept;
 
-		void insert(const value_type& val);
+		void insert(const value_type &val);
 
-		void insert(const value_type&& val);
+		void insert(const value_type &&val);
 
-		void emplace(const key_type& key, const mapped_type& value);
+		void emplace(const key_type &key, const mapped_type &value);
 
-		void emplace(const key_type& key, mapped_type&& value);
+		void emplace(const key_type &key, mapped_type &&value);
 
-		void emplace(key_type&& key, const mapped_type& value);
+		void emplace(key_type &&key, const mapped_type &value);
 
-		void emplace(key_type&& key, mapped_type&& value);
+		void emplace(key_type &&key, mapped_type &&value);
 
-		mapped_type& at(const key_type& key);
+		mapped_type &at(const key_type &key);
 
-		const mapped_type& at(const key_type& key) const;
+		const mapped_type &at(const key_type &key) const;
 
-		mapped_type& operator[](const key_type& key);
+		mapped_type &operator[](const key_type &key);
 
-		mapped_type& operator[](const key_type&& key);
+		mapped_type &operator[](const key_type &&key);
 
-		size_type count(const key_type& key) const;
+		const mapped_type &operator[](const key_type &key) const;
 
-		bool contains(const key_type& key) const;
+		const mapped_type &operator[](const key_type &&key) const;
+
+		size_type count(const key_type &key) const;
+
+		bool contains(const key_type &key) const;
 
 		iterator begin() noexcept;
 
@@ -80,25 +83,25 @@ export namespace codie::json
 
 		value(bool b) : _value(b) {}
 
-		template<std::integral T>
+		template <std::integral T>
 		value(T i) : _value(static_cast<double>(i)) {}
 
-		template<std::floating_point T>
+		template <std::floating_point T>
 		value(T f) : _value(static_cast<double>(f)) {}
 
-		value(const char* s) : _value(std::string(s)) {}
+		value(const char *s) : _value(std::string(s)) {}
 
 		value(std::string_view s) : _value(std::string(s)) {}
 
 		value(std::string str) : _value(std::move(str)) {}
 
-		value(const object& obj) : _value(obj) {}
+		value(const object &obj) : _value(obj) {}
 
-		value(object&& obj) : _value(std::move(obj)) {}
+		value(object &&obj) : _value(std::move(obj)) {}
 
-		value(const std::vector<value>& vec) : _value(vec) {}
+		value(const std::vector<value> &vec) : _value(vec) {}
 
-		value(std::vector<value>&& vec) : _value(std::move(vec)) {}
+		value(std::vector<value> &&vec) : _value(std::move(vec)) {}
 
 		bool is_null() const
 		{
@@ -130,8 +133,14 @@ export namespace codie::json
 			return std::holds_alternative<object>(_value);
 		}
 
-		template<typename T>
-		T as() const
+		template <typename T>
+		T &as()
+		{
+			return std::get<T>(_value);
+		}
+
+		template <typename T>
+		const T &as() const
 		{
 			return std::get<T>(_value);
 		}
@@ -145,62 +154,72 @@ export namespace codie::json
 		_map.clear();
 	}
 
-	void object::insert(const object::value_type& value)
+	void object::insert(const object::value_type &value)
 	{
 		_map.insert(value);
 	}
 
-	void object::insert(const object::value_type&& value)
+	void object::insert(const object::value_type &&value)
 	{
 		_map.insert(std::move(value));
 	}
 
-	void object::emplace(const object::key_type& key, const object::mapped_type& value)
+	void object::emplace(const object::key_type &key, const object::mapped_type &value)
 	{
 		_map.emplace(key, value);
 	}
 
-	void object::emplace(const object::key_type& key, object::mapped_type&& value)
+	void object::emplace(const object::key_type &key, object::mapped_type &&value)
 	{
 		_map.emplace(key, value);
 	}
 
-	void object::emplace(object::key_type&& key, const object::mapped_type& value)
+	void object::emplace(object::key_type &&key, const object::mapped_type &value)
 	{
 		_map.emplace(std::move(key), value);
 	}
 
-	void object::emplace(object::key_type&& key, object::mapped_type&& value)
+	void object::emplace(object::key_type &&key, object::mapped_type &&value)
 	{
 		_map.emplace(std::move(key), std::move(value));
 	}
 
-	object::mapped_type& object::at(const key_type& key)
+	object::mapped_type &object::at(const key_type &key)
 	{
 		return _map.at(key);
 	}
 
-	const object::mapped_type& object::at(const key_type& key) const
+	const object::mapped_type &object::at(const key_type &key) const
 	{
 		return _map.at(key);
 	}
 
-	object::mapped_type& object::operator[](const key_type& key)
+	object::mapped_type &object::operator[](const key_type &key)
 	{
 		return _map[key];
 	}
 
-	object::mapped_type& object::operator[](const key_type&& key)
+	object::mapped_type &object::operator[](const key_type &&key)
 	{
 		return _map[std::move(key)];
 	}
 
-	object::size_type object::count(const key_type& key) const
+	const object::mapped_type &object::operator[](const key_type &key) const
+	{
+		return _map.at(key);
+	}
+
+	const object::mapped_type &object::operator[](const key_type &&key) const
+	{
+		return _map.at(std::move(key));
+	}
+
+	object::size_type object::count(const key_type &key) const
 	{
 		return _map.count(key);
 	}
 
-	bool object::contains(const key_type& key) const
+	bool object::contains(const key_type &key) const
 	{
 		return _map.contains(key);
 	}
