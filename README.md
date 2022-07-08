@@ -53,6 +53,8 @@ int main(int argc, char **args) {
     if (auto *obj = json.get_if<codie::json::object>()) { // type checking.
       for (auto &[key, v] : *obj) { // iterating over object.
         std::cout << "(key, value): " << '(' << key << ", ";
+        
+        // Encoding values.
         codie::json::encode(v, std::cout);
 
         std::cout << ")" << std::endl;
