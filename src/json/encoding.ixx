@@ -1,186 +1,87 @@
 export module codie.json.encoding;
 
-import <string>;
-import <string_view>;
-import <stdexcept>;
-import <optional>;
+import<string>;
+import<string_view>;
+import<stdexcept>;
+import<optional>;
+import<iostream>;
+import<charconv>;
 
 import codie.json.object;
 
-export namespace codie::json
-{
-    std::string encode_string(std::string_view str)
-    {
-        std::string result;
-        result += '"';
-        for (auto c : str)
-        {
-            if (c == '"')
-            {
-                result += "\\\"";
-            }
-            else if (c == '\\')
-            {
-                result += "\\\\";
-            }
-            else if (c == '\b')
-            {
-                result += "\\b";
-            }
-            else if (c == '\f')
-            {
-                result += "\\f";
-            }
-            else if (c == '\n')
-            {
-                result += "\\n";
-            }
-            else if (c == '\r')
-            {
-                result += "\\r";
-            }
-            else if (c == '\t')
-            {
-                result += "\\t";
-            }
-            else if (c < 0x20)
-            {
-                result += "\\u";
-                result += std::to_string(c);
-            }
-            else
-            {
-                result += c;
-            }
-        }
+export namespace codie::json {
+template <typename T>
+void encode(const T &val, std::ostream &os, bool indented = false) {
+  if constexpr (std::is_same_v<T, bool>) {
+    os << (val ? "true" : "false");
+  } else if constexpr (std::is_same_v<T, std::nullopt_t>) {
+    os << "null";
+  } else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    os << val;
+  } else if constexpr (std::is_same_v<T, std::string>) {
+    os << "\"" << val << "\"";
+  } else if constexpr (std::is_same_v<T, object>) {
+    os << "{";
 
-        result += '"';
-        return result;
+    if (indented)
+      os << "\n";
+
+    for (auto it = val.begin(); it != val.end(); ++it) {
+      os << "\"" << it->first << "\": ";
+      encode(it->second, os, indented);
+
+      if (std::next(it) != val.end())
+        os << ",";
+
+      if (indented)
+        os << "\n";
     }
 
-    template <typename T>
-    std::string encode(const T &val)
-    {
-        if constexpr (std::is_same_v<T, std::nullopt_t>) // nullopt
-        {
-            return "null";
-        }
-        else if constexpr (std::is_same_v<T, bool>) // bool
-        {
-            return val ? "true" : "false";
-        }
-        else if constexpr (std::is_same_v<T, std::string> || std::is_same_v<T, std::string_view>) // string
-        {
-            std::string temp{};
-            temp += '"';
-            for (auto c : val)
-            {
-                switch (c)
-                {
-                case '"':
-                    temp += "\\\"";
-                    break;
-                case '\\':
-                    temp += "\\\\";
-                    break;
-                case '\b':
-                    temp += "\\b";
-                    break;
-                case '\f':
-                    temp += "\\f";
-                    break;
-                case '\n':
-                    temp += "\\n";
-                    break;
-                case '\r':
-                    temp += "\\r";
-                    break;
-                case '\t':
-                    temp += "\\t";
-                    break;
-                case '\0':
-                    temp += "\\u0000";
-                    break;
-                default:
-                    temp += c;
-                    break;
-                }
-            }
+    os << "}";
+  } else if constexpr (std::is_same_v<T, std::vector<value>>) {
+    os << '[';
+    if (indented)
+      os << "\n";
 
-            temp += '"';
-            return temp;
-        }
-        else if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) // ints/floats
-        {
-            return std::to_string(val);
-        }
-        else if constexpr (std::is_same_v<T, object>) // json::object
-        {
-            std::string temp{};
-            temp += '{';
+    for (auto it = val.begin(); it != val.end(); ++it) {
+      encode(*it, os, indented);
 
-            for (auto it = val.begin(); it != val.end(); ++it)
-            {
-                temp += encode(it->first);
-                temp += ':';
-                temp += encode(it->second);
+      if (it != val.end() - 1)
+        os << ",";
 
-                if (std::next(it) != val.end())
-                {
-                    temp += ',';
-                }
-            }
-
-            temp += '}';
-            return temp;
-        }
-        else if constexpr (std::is_same_v<T, std::vector<value>>) // std::vector<json::value>
-        {
-            std::string temp{};
-            temp += '[';
-            for (auto it = val.begin(); it != val.end(); ++it)
-            {
-                temp += encode(*it);
-
-                if (it != val.end() - 1)
-                {
-                    temp += ',';
-                }
-            }
-
-            temp += ']';
-            return temp;
-        }
-        else if constexpr (std::is_same_v<T, value>) // json::value
-        {
-            if (val.is_null())
-            {
-                return "null";
-            }
-            else if (val.is_bool())
-            {
-                return val.as<bool>() ? "true" : "false";
-            }
-            else if (val.is_number())
-            {
-                return std::to_string(val.as<double>());
-            }
-            else if (val.is_string())
-            {
-                return encode(val.as<std::string>());
-            }
-            else if (val.is_object())
-            {
-                return encode(val.as<object>());
-            }
-            else if (val.is_array())
-            {
-                return encode(val.as<std::vector<value>>());
-            }
-        }
-        else
-        {
-            throw std::runtime_error("invalid type T for json::encode.");
-        }
+      if (indented)
+        os << "\n";
     }
+
+    os << ']';
+
+  } else if constexpr (std::is_same_v<T, value>) {
+    if (auto *v = val.get_if<std::nullopt_t>()) {
+      os << "null";
+    } else if (auto *v = val.get_if<bool>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<std::int64_t>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<std::uint64_t>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<double>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<std::string>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<object>()) {
+      encode(*v, os, indented);
+    } else if (auto *v = val.get_if<std::vector<value>>()) {
+      encode(*v, os, indented);
+    } else {
+      throw std::runtime_error("unknown value type");
+    }
+  }
 }
+
+template <typename T>
+std::string encode(const T &value, bool indented = false) {
+  std::stringstream ss;
+  encode(value, ss, indented);
+  return ss.str();
+}
+} // namespace codie::json

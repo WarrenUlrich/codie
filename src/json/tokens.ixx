@@ -1,327 +1,560 @@
 export module codie.json.tokens;
 
-import <string_view>;
-import <iterator>;
-import <cctype>;
+import<string_view>;
+import<iterator>;
+import<cctype>;
+import<charconv>;
+import<stdexcept>;
+import<iostream>;
 
-export namespace codie::json
-{
-	class token_exception : public std::exception
-	{
-	public:
-		token_exception(std::string_view message) : message(message) {}
+export namespace codie::json {
+struct token_object_begin {};
 
-		const char *what() const noexcept override { return message.data(); }
+struct token_object_end {};
 
-	private:
-		std::string_view message;
-	};
+struct token_array_begin {};
 
-	class unterminated_string_exception : public token_exception
-	{
-	public:
-		unterminated_string_exception() : token_exception("unterminated string") {}
-	};
+struct token_array_end {};
 
-	class token_t
-	{
-	};
+struct token_comma {};
 
-	class token_null : public token_t
-	{
-	};
+struct token_colon {};
 
-	class token_string : public token_t
-	{
-	public:
-		std::string value;
+struct token_boolean_true {};
 
-		token_string(std::string string) : value(std::move(string)) {}
-	};
+struct token_boolean_false {};
 
-	class token_number : public token_t
-	{
-	public:
-		double value;
+struct token_null {};
 
-		token_number(double v) : value(v) {}
-	};
+struct token_string {
+  std::string value;
+};
 
-	class token_boolean : public token_t
-	{
-	public:
-		bool value;
+struct token_number_float {
+  double value;
+};
 
-		token_boolean(bool v) : value(v) {}
-	};
+struct token_number_unsigned_integer {
+  std::uint64_t value;
+};
 
-	class token_array_begin : public token_t
-	{
-	};
+struct token_number_signed_integer {
+  std::int64_t value;
+};
 
-	class token_array_end : public token_t
-	{
-	};
+// Input iterator tokenizer.
+export template <typename Iter>
+requires std::input_iterator<Iter> &&
+    std::same_as < typename std::iterator_traits<Iter>::value_type,
+char > bool tokenize(Iter &begin, Iter end, auto &&predicate) {
+  while (begin != end) {
+    switch (*begin) {
+    case '{':
+      ++begin;
+      if (!predicate(token_object_begin{}))
+        return false;
+      break;
+    case '}':
+      ++begin;
+      if (!predicate(token_object_end{}))
+        return false;
+      break;
+    case '[':
+      ++begin;
+      if (!predicate(token_array_begin{}))
+        return false;
+      break;
+    case ']':
+      ++begin;
+      if (!predicate(token_array_end{}))
+        return false;
+      break;
+    case ',':
+      ++begin;
+      if (!predicate(token_comma{}))
+        return false;
+      break;
+    case ':':
+      ++begin;
+      if (!predicate(token_colon{}))
+        return false;
+      break;
+    case 't':
+      if (++begin == end || *begin != 'r')
+        throw std::runtime_error("expected 'true'");
 
-	class token_object_begin : public token_t
-	{
-	};
+      if (++begin == end || *begin != 'u')
+        throw std::runtime_error("expected 'true'");
 
-	class token_object_end : public token_t
-	{
-	};
+      if (++begin == end || *begin != 'e')
+        throw std::runtime_error("expected 'true'");
 
-	class token_comma : public token_t
-	{
-	};
+      if (!predicate(token_boolean_true{}))
+        return false;
 
-	class token_colon : public token_t
-	{
-	};
+      break;
+    case 'f':
+      if (++begin == end || *begin != 'a')
+        throw std::runtime_error("expected 'false'");
 
-	export template <std::input_iterator Iter>
-	requires std::is_same_v<typename Iter::value_type, char>
-	bool tokenize(Iter &begin, Iter end, const auto &pred)
-	{
-		while (begin != end)
-		{
-			switch (*begin)
-			{
-			case '{': // start of object
-				if (!pred(token_object_begin{}))
-					return false;
-				++begin;
-				break;
-			case '}': // end of object
-				if (!pred(token_object_end{}))
-					return false;
-				++begin;
-				break;
-			case '[': // start of array
-				if (!pred(token_array_begin{}))
-					return false;
+      if (++begin == end || *begin != 'l')
+        throw std::runtime_error("expected 'false'");
 
-				++begin;
-				break;
-			case ']': // end of array
-				if (!pred(token_array_end{}))
-					return false;
+      if (++begin == end || *begin != 's')
+        throw std::runtime_error("expected 'false'");
 
-				++begin;
-				break;
-			case ',': // comma
-				if (!pred(token_comma{}))
-					return false;
+      if (++begin == end || *begin != 'e')
+        throw std::runtime_error("expected 'false'");
 
-				++begin;
-				break;
-			case ':':
-				if (!pred(token_colon{}))
-					return false;
-				begin++;
-				break;
-			case '"': // string
-			{
-				std::string temp;
-				++begin;
+      if (!predicate(token_boolean_false{}))
+        return false;
 
-				while (begin != end && *begin != '\"')
-					temp += *begin++;
+      break;
+    case 'n':
+      if (++begin == end || *begin != 'u')
+        throw std::runtime_error("expected 'null'");
 
-				++begin;
+      if (++begin == end || *begin != 'l')
+        throw std::runtime_error("expected 'null'");
 
-				if (!pred(token_string(std::move(temp))))
-					return false;
+      if (++begin == end || *begin != 'l')
+        throw std::runtime_error("expected 'null'");
 
-				break;
-			}
-			case 't': // true
-			{
-				// Contiguous iterator
-				if constexpr (requires { std::contiguous_iterator<Iter>; }) //(std::is_same_v<std::iterator_traits<Iter>::iterator_category, std::contiguous_iterator_tag>)
-				{
-					if (begin + 4 < end && *(begin + 1) == 'r' && *(begin + 2) == 'u' && *(begin + 3) == 'e')
-					{
-						begin += 4;
-						if (!pred(token_boolean(true)))
-							return false;
-					}
-					else
-						throw token_exception("invalid token, expected 'true'");
-				}
-				else // Non-contiguous
-				{
-					if (++begin != end && *begin == 'r')
-						if (++begin != end && *begin == 'u')
-							if (++begin != end && *begin == 'e')
-							{
-								if (!pred(token_boolean(true)))
-									return false;
+      if (!predicate(token_null{}))
+        return false;
 
-								break;
-							}
+      break;
+    case '"': {
+      ++begin;
+      if (begin == end)
+        throw std::runtime_error("expected string");
 
-					throw token_exception("invalid token, expected 'true'");
-				}
-				break;
-			}
-			case 'f': // false
-			{
-				// Continous iterator
-				if constexpr (requires { std::contiguous_iterator<Iter>; })
-				{
-					if (begin + 5 < end && *(begin + 1) == 'a' && *(begin + 2) == 'l' && *(begin + 3) == 's' && *(begin + 4) == 'e')
-					{
-						begin += 5;
+      // check if string is empty.
+      if (*begin == '"') {
+        ++begin;
+        if (!predicate(token_string{}))
+          return false;
+        break;
+      }
 
-						if (!pred(token_boolean(false)))
-							return false;
-					}
-					else
-						throw token_exception("invalid token, expected 'false'");
-				}
-				else // Non-contiguous iterator
-				{
-					if (++begin != end && *begin == 'a')
-						if (++begin != end && *begin == 'l')
-							if (++begin != end && *begin == 's')
-								if (++begin != end && *begin == 'e')
-								{
-									if (!pred(token_boolean(false)))
-										return false;
+      std::string temp;
 
-									break;
-								}
+      while (begin != end && *begin != '"') {
+        if (*begin == '\\') {
+          temp += *begin++;
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
+          temp += *begin++;
+        } else {
+          temp += *begin++;
+        }
+      }
 
-					throw token_exception("invalid token, expected 'true'");
-				}
-				break;
-			}
-			case 'n': // null
-			{
-				// Continous iterator
-				if constexpr (requires { std::contiguous_iterator<Iter>; })
-				{
-					if (begin + 4 < end && *(begin + 1) == 'u' && *(begin + 2) == 'l' && *(begin + 3) == 'l')
-					{
-						if (!pred(token_null()))
-							return false;
-						begin += 4;
-					}
-					else
-						throw token_exception("invalid token, expected 'null'");
-				}
-				else // Non-contiguous iterator
-				{
-					if (++begin != end && *begin == 'u')
-						if (++begin != end && *begin == 'l')
-							if (++begin != end && *begin == 'l')
-							{
-								if (!pred(token_null()))
-									return false;
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
 
-								break;
-							}
+      ++begin;
+      if (!predicate(token_string{std::move(temp)}))
+        return false;
 
-					throw token_exception("invalid token, expected 'null'");
-				}
-			}
-			case '-': // number
-			case '0':
-			case '1':
-			case '2':
-			case '3':
-			case '4':
-			case '5':
-			case '6':
-			case '7':
-			case '8':
-			case '9':
-			{
-				// Continous iterator
-				if constexpr (requires { std::contiguous_iterator<Iter>; })
-				{
-					const Iter start = begin;
+      // if (!predicate(temp))
+      //     return false;
+      break;
+    }
+    case '-': {
+      std::string temp;
+      temp += *begin++;
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
 
-					while (begin != end && std::isdigit(*begin))
-						begin++;
+      while (begin != end && std::isdigit(*begin))
+        temp += *begin++;
 
-					if (*begin == '.')
-					{
-						begin++;
-						while (begin != end && std::isdigit(*begin))
-							begin++;
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
 
-						if (*begin == 'e' || *begin == 'E')
-						{
-							begin++;
-							if (*begin == '-' || *begin == '+')
-								begin++;
+      bool is_float = false;
+      if (*begin == '.') {
+        is_float = true;
+        temp += *begin++;
+        if (begin == end)
+          throw std::runtime_error("unexpected end of input");
 
-							while (begin != end && std::isdigit(*begin))
-								begin++;
-						}
-					}
+        while (begin != end && std::isdigit(*begin))
+          temp += *begin++;
 
-					const auto str = std::string_view(start, begin);
+        if (begin == end)
+          throw std::runtime_error("unexpected end of input");
 
-					if (!pred(token_number(atof(str.data()))))
-						return false;
+        if (*begin == 'e' || *begin == 'E') {
+          temp += *begin++;
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
 
-					break;
-				}
-				else // Non-continiguous iterator
-				{
-					std::string temp;
+          if (*begin == '+' || *begin == '-')
+            temp += *begin++;
 
-					temp += *begin++;
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
 
-					while (begin != end && std::isdigit(*begin))
-						temp += *begin++;
+          while (begin != end && std::isdigit(*begin))
+            temp += *begin++;
 
-					if (*begin == '.')
-					{
-						temp += *begin++;
-						while (begin != end && std::isdigit(*begin))
-							temp += *begin++;
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
+        }
+      }
 
-						if (*begin == 'e' || *begin == 'E')
-						{
-							temp += *begin++;
-							if (*begin == '-' || *begin == '+')
-								temp += *begin++;
+      if (is_float) {
+        double value;
 
-							while (begin != end && std::isdigit(*begin))
-								temp += *begin++;
-						}
-					}
+        auto [ptr, ec] =
+            std::from_chars(temp.data(), temp.data() + temp.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
 
-					if (!pred(token_number(atof(temp.c_str()))))
-						return false;
+        if (!predicate(token_number_float{value}))
+          return false;
+      } else {
+        std::int64_t value;
+        auto [ptr, ec] =
+            std::from_chars(temp.data(), temp.data() + temp.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
 
-					break;
-				}
-			}
-			default:
-				++begin;
-				break;
-			}
-		}
-		return true;
-	}
+        if (!predicate(token_number_signed_integer{value}))
+          return false;
+      }
+      break;
+    }
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9': {
+      std::string temp;
+      temp += *begin++;
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
 
-	export template <std::input_iterator Iter>
-	requires std::is_same_v<typename Iter::value_type, char>
-	bool tokenize(Iter &&begin, Iter end, const auto &pred)
-	{
-		auto begin_ = std::move(begin);
-		return tokenize(begin, end, pred);
-	}
+      while (begin != end && std::isdigit(*begin))
+        temp += *begin++;
 
-	export template <std::ranges::input_range Range>
-	requires std::is_same_v<typename Range::value_type, char>
-	bool tokenize(Range &range, const auto &pred)
-	{
-		return tokenize(std::ranges::begin(range), std::ranges::end(range), pred);
-	}
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
+
+      bool is_float = false;
+      if (*begin == '.') {
+        is_float = true;
+        temp += *begin++;
+        if (begin == end)
+          throw std::runtime_error("unexpected end of input");
+
+        while (begin != end && std::isdigit(*begin))
+          temp += *begin++;
+
+        if (begin == end)
+          throw std::runtime_error("unexpected end of input");
+
+        if (*begin == 'e' || *begin == 'E') {
+          temp += *begin++;
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
+
+          if (*begin == '+' || *begin == '-')
+            temp += *begin++;
+
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
+
+          while (begin != end && std::isdigit(*begin))
+            temp += *begin++;
+
+          if (begin == end)
+            throw std::runtime_error("unexpected end of input");
+        }
+      }
+
+      if (is_float) {
+        double value;
+
+        auto [ptr, ec] =
+            std::from_chars(temp.data(), temp.data() + temp.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_float{value}))
+          return false;
+      } else {
+        std::uint64_t value;
+        auto [ptr, ec] =
+            std::from_chars(temp.data(), temp.data() + temp.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_unsigned_integer{value}))
+          return false;
+      }
+      break;
+    }
+    default:
+      ++begin;
+      break;
+    }
+  }
+  return true;
 }
+
+// Contiguous iterator tokenizer.
+export template <typename Iter>
+requires std::contiguous_iterator<Iter> &&
+    std::same_as < typename std::iterator_traits<Iter>::value_type,
+char > bool tokenize(Iter &begin, Iter end, auto &&predicate) {
+  while (begin != end) {
+    switch (*begin) {
+    case '{':
+      ++begin;
+      if (!predicate(token_object_begin{}))
+        return false;
+      break;
+    case '}':
+      ++begin;
+      if (!predicate(token_object_end{}))
+        return false;
+      break;
+    case '[':
+      ++begin;
+      if (!predicate(token_array_begin{}))
+        return false;
+      break;
+    case ']':
+      ++begin;
+      if (!predicate(token_array_end{}))
+        return false;
+      break;
+    case ',':
+      ++begin;
+      if (!predicate(token_comma{}))
+        return false;
+      break;
+    case ':':
+      ++begin;
+      if (!predicate(token_colon{}))
+        return false;
+      break;
+    case 't':
+      if (begin + 4 < end && *(begin + 1) == 'r' && *(begin + 2) == 'u' &&
+          *(begin + 3) == 'e') {
+        begin += 4;
+        if (!predicate(token_boolean_true{}))
+          return false;
+
+        break;
+      } else {
+        throw std::runtime_error("invalid token");
+      }
+    case 'f':
+      if (begin + 5 < end && *(begin + 1) == 'a' && *(begin + 2) == 'l' &&
+          *(begin + 3) == 's' && *(begin + 4) == 'e') {
+        begin += 5;
+        if (!predicate(token_boolean_false{}))
+          return false;
+
+        break;
+      } else {
+        throw std::runtime_error("invalid token");
+      }
+    case 'n':
+      if (begin + 4 < end && *(begin + 1) == 'u' && *(begin + 2) == 'l' &&
+          *(begin + 3) == 'l') {
+        begin += 4;
+        if (!predicate(token_null{}))
+          return false;
+
+        break;
+      } else {
+        throw std::runtime_error("invalid token");
+      }
+    case '"': {
+      // parse string
+      ++begin;
+      if (begin == end)
+        throw std::runtime_error("unexpected end of input");
+
+      // check if string is empty
+      if (*begin == '"') {
+        ++begin;
+        if (!predicate(token_string{}))
+          return false;
+        break;
+      }
+
+      auto string_begin = begin;
+      while (begin != end && *begin != '"') {
+        if (*begin == '\\') {
+          ++begin;
+          if (begin == end)
+            throw std::runtime_error("invalid string");
+          ++begin;
+        } else {
+          ++begin;
+        }
+      }
+
+      if (begin == end)
+        throw std::runtime_error("invalid string");
+
+      if (!predicate(token_string{std::string{string_begin, begin++}}))
+        return false;
+      break;
+    }
+    case '-': {
+      // parse signed integer/float
+      const auto start = begin++;
+
+      if (begin == end)
+        throw std::runtime_error("invalid number token");
+
+      while (begin != end && std::isdigit(*begin))
+        ++begin;
+
+      if (begin == end)
+        throw std::runtime_error("invalid number token");
+
+      bool is_float = false;
+      if (*begin == '.') {
+        is_float = true;
+        ++begin;
+        if (begin == end || !std::isdigit(*begin))
+          throw std::runtime_error("invalid number token");
+
+        while (begin != end && std::isdigit(*begin))
+          ++begin;
+
+        if (begin == end)
+          throw std::runtime_error("invalid number token");
+
+        // e-notation
+        if (*begin == 'e' || *begin == 'E') {
+          ++begin;
+          // check for +/-
+          if (begin == end || (*begin != '+' && *begin != '-'))
+            throw std::runtime_error("invalid number token");
+
+          ++begin;
+          while (begin != end && std::isdigit(*begin))
+            ++begin;
+        }
+      }
+
+      const auto str = std::string_view{start, begin};
+
+      if (is_float) {
+        double value;
+
+        auto [_, ec] =
+            std::from_chars(str.data(), str.data() + str.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_float{value}))
+          return false;
+      } else {
+        std::int64_t value;
+        auto [_, ec] =
+            std::from_chars(str.data(), str.data() + str.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_signed_integer{value}))
+          return false;
+      }
+
+      break;
+    }
+    case '0':
+    case '1':
+    case '2':
+    case '3':
+    case '4':
+    case '5':
+    case '6':
+    case '7':
+    case '8':
+    case '9': {
+      // parse unsigned integer/float
+      const auto start = begin++;
+
+      if (begin == end)
+        throw std::runtime_error("invalid number token");
+
+      while (begin != end && std::isdigit(*begin))
+        ++begin;
+
+      if (begin == end)
+        throw std::runtime_error("invalid number token");
+
+      bool is_float = false;
+      if (*begin == '.') {
+        is_float = true;
+        ++begin;
+        if (begin == end || !std::isdigit(*begin))
+          throw std::runtime_error("invalid number token");
+
+        while (begin != end && std::isdigit(*begin))
+          ++begin;
+
+        if (begin == end)
+          throw std::runtime_error("invalid number token");
+
+        // e-notation
+        if (*begin == 'e' || *begin == 'E') {
+          ++begin;
+          // check for +/-
+          if (begin == end || (*begin != '+' && *begin != '-'))
+            throw std::runtime_error("invalid number token");
+
+          ++begin;
+          while (begin != end && std::isdigit(*begin))
+            ++begin;
+        }
+      }
+
+      const auto str = std::string_view{start, begin};
+
+      if (is_float) {
+        double value;
+
+        auto [_, ec] =
+            std::from_chars(str.data(), str.data() + str.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_float{value}))
+          return false;
+      } else {
+        std::uint64_t value;
+        auto [_, ec] =
+            std::from_chars(str.data(), str.data() + str.size(), value);
+        if (ec != std::errc())
+          throw std::runtime_error("invalid number token");
+
+        if (!predicate(token_number_unsigned_integer{value}))
+          return false;
+      }
+
+      break;
+    }
+    default:
+      ++begin;
+      break;
+    }
+  }
+  return true;
+}
+} // namespace codie::json
