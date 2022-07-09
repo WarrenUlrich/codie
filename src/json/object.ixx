@@ -27,7 +27,7 @@ public:
 
   using const_iterator = map_t::const_iterator;
 
-  object() = default;
+  object() noexcept = default;
 
   object(const object &other) noexcept : _map(other._map) {}
 
@@ -230,10 +230,6 @@ public:
   template <typename T> const T *get_if() const noexcept {
     return std::get_if<T>(&_value);
   }
-
-  variant_t &get_variant() noexcept { return _value; }
-
-  const variant_t &get_variant() const noexcept { return _value; }
 
 private:
   variant_t _value;

@@ -15,6 +15,28 @@ import codie.json.object;
 import codie.json.meta;
 
 export namespace codie::json {
+
+/*
+ * @tparam T The type of the value.
+ * @brief Returns whether type T is decodable from a json string. T is decodable
+ * if it is a codie::json::object, codie::json::value, bool, int64_t, uint64_t,
+ * double, std::string, or std::vector<decodable>.
+ */
+template <typename T> constexpr bool is_decodable() {
+  if constexpr (meta::is_specialization_v<T, std::vector>) {
+    using vec_value_t = typename T::value_type;
+    return is_decodable<vec_value_t>();
+  } else {
+    return std::is_same_v<T, object> || std::is_same_v<T, value> ||
+           std::is_same_v<T, std::string> || std::is_same_v<T, bool> ||
+           std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> ||
+           std::is_same_v<T, double>;
+  }
+}
+
+template <typename T>
+concept decodable = is_decodable<T>();
+
 class decoding_error : public std::runtime_error {
 public:
   decoding_error(const std::string &what) : std::runtime_error(what) {}
@@ -272,7 +294,7 @@ Obj decode_object(Iter &begin, Iter end) requires
  * @param end iterator to the end of the input sequence
  * @returns a JSON value,
  */
-export template <typename T = value, typename Iter>
+export template <decodable T = value, typename Iter>
 T decode(Iter &begin,
          Iter end) requires std::is_same_v<typename Iter::value_type, char> {
   T result;
@@ -359,6 +381,12 @@ T decode(Iter &begin,
   return result;
 }
 
+export template <decodable T = value, typename Iter>
+T decode(Iter &&begin,
+         Iter end) requires std::is_same_v<typename Iter::value_type, char> {
+  return decode<T>(begin, end);
+}
+
 /*
  * @tparam T the type of the value to decode, defaulted to
  * 'codie::json::value', can be a 'bool', 'double', 'std::uint64_t',
@@ -368,7 +396,7 @@ T decode(Iter &begin,
  * char.
  * @param range range of characters to decode into a codie::json::value
  */
-export template <typename T = value, std::ranges::range Range>
+export template <decodable T = value, std::ranges::range Range>
     T decode(Range &range) requires std::is_same_v <
     std::ranges::range_value_t<Range>,
 char > {
@@ -386,7 +414,7 @@ char > {
  * char.
  * @param range range of characters to decode into a codie::json::value
  */
-export template <typename T = value, typename Range>
+export template <decodable T = value, typename Range>
     T decode(Range &&range) requires std::is_same_v <
     std::ranges::range_value_t<Range>,
 char > {

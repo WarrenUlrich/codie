@@ -6,11 +6,35 @@ import<stdexcept>;
 import<optional>;
 import<iostream>;
 import<charconv>;
-
+import<vector>;
 import codie.json.object;
+import codie.json.meta;
 
 export namespace codie::json {
+
+/*
+ * @tparam T The type of the value.
+ * @brief Returns whether type T is encodable to a json string. T is decodable
+ * if it is a codie::json::object, codie::json::value, bool, int64_t, uint64_t,
+ * double, std::string, or std::vector<decodable>.
+ */
+template <typename T> constexpr bool is_encodable() {
+  if constexpr (meta::is_specialization_v<T, std::vector>) {
+    using vec_value_t = typename T::value_type;
+    return is_encodable<vec_value_t>();
+  } else {
+    return std::is_same_v<T, object> || std::is_same_v<T, value> ||
+           std::is_same_v<T, std::string> ||
+           std::is_same_v<T, std::string_view> || std::is_same_v<T, bool> ||
+           std::is_same_v<T, int64_t> || std::is_same_v<T, uint64_t> ||
+           std::is_same_v<T, double>;
+  }
+}
+
 template <typename T>
+concept encodable = is_encodable<T>();
+
+template <encodable T>
 void encode(const T &val, std::ostream &os, bool indented = false) {
   if constexpr (std::is_same_v<T, bool>) {
     os << (val ? "true" : "false");
@@ -38,7 +62,8 @@ void encode(const T &val, std::ostream &os, bool indented = false) {
     }
 
     os << "}";
-  } else if constexpr (std::is_same_v<T, std::vector<value>>) {
+  } else if constexpr (meta::is_specialization_v<T, std::vector>) {
+    using vec_value_t = typename T::value_type;
     os << '[';
     if (indented)
       os << "\n";
