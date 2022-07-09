@@ -103,7 +103,7 @@ void encode(const T &val, std::ostream &os, bool indented = false) {
   }
 }
 
-template <typename T>
+template <encodable T>
 std::string encode(const T &value, bool indented = false) {
   std::stringstream ss;
   encode(value, ss, indented);

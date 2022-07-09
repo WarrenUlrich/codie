@@ -264,3 +264,24 @@ int main(int argc, char **args) {
 (key, value): (children, ["Jane Doe","John Doe Jr."])
 (key, value): (address, {"state": "California","street": "123 Main St.","city": "Anytown"})
 ```
+
+## Encoding
+
+```c++
+/*
+ * @tparam T The type of the value.
+ * @brief Returns whether type T is encodable to a json string. T is decodable
+ * if it is a codie::json::object, codie::json::value, bool, int64_t, uint64_t,
+ * double, std::string, or std::vector<decodable>.
+ */
+template <typename T> constexpr bool is_encodable();
+
+template <typename T>
+concept encodable = is_encodable<T>();
+
+template <encodable T>
+void encode(const T &val, std::ostream &os, bool indented = false);
+
+template <encodable T>
+std::string encode(const T &value, bool indented = false);
+```
