@@ -161,6 +161,7 @@ public:
   value(const std::vector<value> &vec) noexcept;
 
   value(std::vector<value> &&vec) noexcept;
+  
   value &operator=(const std::string &str) noexcept;
 
   value &operator=(std::string &&str) noexcept;
