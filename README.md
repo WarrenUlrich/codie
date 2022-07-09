@@ -47,10 +47,10 @@ template <decodable T = value, typename Iter>
 T decode(Iter &&begin, Iter end) requires std::is_same_v<typename Iter::value_type, char>;
 
 template <decodable T = value, std::ranges::range Range>
-T decode(Range &range) requires std::is_same_v <std::ranges::range_value_t<Range>, char>
+T decode(Range &range) requires std::is_same_v <std::ranges::range_value_t<Range>, char>;
 
 template <decodable T = value, std::ranges::range Range>
-T decode(Range &&range) requires std::is_same_v <std::ranges::range_value_t<Range>, char>
+T decode(Range &&range) requires std::is_same_v <std::ranges::range_value_t<Range>, char>;
 ```
 
 ### Object
@@ -210,10 +210,6 @@ public:
   template <typename T> T *get_if() noexcept;
 
   template <typename T> const T *get_if() const noexcept;
-
-  variant_t &get_variant() noexcept;
-
-  const variant_t &get_variant() const noexcept;
 };
 ```
 
@@ -259,8 +255,6 @@ int main(int argc, char **args) {
   }
 }
 ```
-<<<<<<< HEAD
-
 ### Output
 ```
 (key, value): (name, "John Doe")
@@ -269,5 +263,3 @@ int main(int argc, char **args) {
 (key, value): (children, ["Jane Doe","John Doe Jr."])
 (key, value): (address, {"state": "California","street": "123 Main St.","city": "Anytown"})
 ```
-=======
->>>>>>> 95b0039ebb58890469e4ee77c18ac6cfdd08ed63
