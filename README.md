@@ -245,6 +245,8 @@ int main(int argc, char **args) {
     if (auto *obj = json.get_if<codie::json::object>()) { // type checking.
       for (auto &[key, v] : *obj) { // iterating over object.
         std::cout << "(key, value): " << '(' << key << ", ";
+        
+        // Encoding values.
         codie::json::encode(v, std::cout);
 
         std::cout << ")" << std::endl;
@@ -257,6 +259,7 @@ int main(int argc, char **args) {
   }
 }
 ```
+<<<<<<< HEAD
 
 ### Output
 ```
@@ -266,3 +269,5 @@ int main(int argc, char **args) {
 (key, value): (children, ["Jane Doe","John Doe Jr."])
 (key, value): (address, {"state": "California","street": "123 Main St.","city": "Anytown"})
 ```
+=======
+>>>>>>> 95b0039ebb58890469e4ee77c18ac6cfdd08ed63
